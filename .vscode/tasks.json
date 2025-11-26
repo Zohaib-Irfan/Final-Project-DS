@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile C++ to Wasm",
+            "type": "shell",
+            "command": "emcc",
+            "args": [
+                "linked_list.cpp",
+                "-o",
+                "visualgo.js",
+                "--bind"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}
