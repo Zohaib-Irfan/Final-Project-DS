@@ -6,7 +6,8 @@
             "type": "shell",
             "command": "emcc",
             "args": [
-                "linked_list.cpp",
+                "heap.cpp",
+                "tree.cpp",
                 "-o",
                 "visualgo.js",
                 "--bind"

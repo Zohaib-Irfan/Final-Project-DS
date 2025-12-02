@@ -1,0 +1,480 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Graph Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="sidebar.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        #controls-header {
+            background-color: #1976D2;
+            color: white;
+            padding: 10px 20px;
+            height: auto;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            margin-right: 20px;
+            font-weight: 600;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            border-radius: 6px;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+            width: 60px;
+            outline: none;
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            background-color: #00E676;
+            color: #003300;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: #00C853;
+            transform: translateY(-1px);
+        }
+
+        button.delete {
+            background-color: #FF5252;
+            color: white;
+        }
+
+        button.algo {
+            background-color: #FFD600;
+            color: #333;
+        }
+
+        #visualization-container {
+            width: calc(100% - 70px);
+            height: calc(100vh - 100px);
+            margin-top: 100px;
+            margin-left: 70px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node-circle {
+            fill: #fff;
+            stroke: #333;
+            stroke-width: 2;
+            transition: all 0.3s;
+        }
+
+        .node-text {
+            fill: #333;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: central;
+            pointer-events: none;
+        }
+
+        .link {
+            stroke: #999;
+            stroke-width: 2;
+            transition: all 0.3s;
+        }
+
+        .link-text {
+            fill: #555;
+            font-size: 12px;
+            text-anchor: middle;
+            background-color: white;
+        }
+
+        .highlighted-node {
+            fill: #FFEB3B !important;
+            stroke: #FBC02D !important;
+            stroke-width: 3 !important;
+        }
+
+        .visited-node {
+            fill: #B3E5FC !important;
+            stroke: #03A9F4 !important;
+        }
+
+        .highlighted-link {
+            stroke: #FFD600 !important;
+            stroke-width: 4 !important;
+        }
+
+        .mst-link {
+            stroke: #4CAF50 !important;
+            stroke-width: 4 !important;
+        }
+
+        .path-link {
+            stroke: #F44336 !important;
+            stroke-width: 4 !important;
+        }
+
+        #log-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mySidebar" class="sidebar">
+        <div class="sidebar-title">Visualizer</div>
+        <a href="heap.html">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M4 20h16v2H4v-2zm0-2h4v-4H4v4zm6 0h4v-4h-4v4zm6 0h4v-4h-4v4zM4 8h16v2H4V8zm0-2h4V2H4v4zm6 0h4V2h-4v4zm6 0h4V2h-4v4z" />
+            </svg>
+            Heap
+        </a>
+        <a href="tree.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z" />
+            </svg>
+            BST
+        </a>
+        <a href="hashmap.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2z" />
+            </svg>
+            Hash Map
+        </a>
+        <a href="graph.html" class="active">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v16H4V4zm2 4v10h12V8H6z" /> <!-- Placeholder icon -->
+            </svg>
+            Graph
+        </a>
+    </div>
+
+    <div id="controls-header">
+        <h1>Graph Visualizer</h1>
+
+        <div class="control-group">
+            <input type="number" id="nodeId" placeholder="ID">
+            <button onclick="addNode()">Add Node</button>
+            <button class="delete" onclick="removeNode()">Del Node</button>
+        </div>
+
+        <div class="control-group">
+            <input type="number" id="sourceId" placeholder="Src">
+            <input type="number" id="targetId" placeholder="Tgt">
+            <input type="number" id="weight" placeholder="Wgt" value="1">
+            <button onclick="addEdge()">Add Edge</button>
+            <button class="delete" onclick="removeEdge()">Del Edge</button>
+        </div>
+
+        <div class="control-group">
+            <input type="number" id="startNode" placeholder="Start" style="width: 50px;">
+            <button class="algo" onclick="runBFS()">BFS</button>
+            <button class="algo" onclick="runDFS()">DFS</button>
+            <button class="algo" onclick="runPrim()">Prim</button>
+        </div>
+
+        <div class="control-group">
+            <input type="number" id="endNode" placeholder="End" style="width: 50px;">
+            <button class="algo" onclick="runDijkstra()">Dijkstra</button>
+        </div>
+
+        <button class="delete" onclick="clearGraph()">Clear</button>
+    </div>
+
+    <div id="visualization-container">
+        <svg id="visualization"></svg>
+    </div>
+
+    <div id="log-panel">
+        <div>Log initialized...</div>
+    </div>
+
+    <div id="status"
+        style="position: fixed; bottom: 10px; left: 10px; background: #333; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px;">
+        Loading WASM...</div>
+
+    <script>
+        var Module = {
+            onRuntimeInitialized: function () {
+                const status = document.getElementById('status');
+                if (status) {
+                    status.textContent = "WASM Ready";
+                    status.style.backgroundColor = "#4CAF50";
+                }
+                console.log("WASM Initialized");
+            },
+            print: function (text) { console.log("WASM stdout:", text); },
+            printErr: function (text) { console.error("WASM stderr:", text); }
+        };
+    </script>
+    <script src="visualgo.js"></script>
+
+    <script>
+        const svg = d3.select("#visualization");
+        const width = document.getElementById('visualization-container').clientWidth;
+        const height = document.getElementById('visualization-container').clientHeight;
+
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        let link = svg.append("g").attr("class", "links").selectAll("line");
+        let linkLabel = svg.append("g").attr("class", "link-labels").selectAll("text");
+        let node = svg.append("g").attr("class", "nodes").selectAll("g");
+
+        function renderGraph(graphData) {
+            console.log("Rendering graph:", graphData);
+
+            // Update nodes and links
+            const nodes = graphData.nodes.map(d => Object.create(d));
+            const links = graphData.links.map(d => Object.create(d));
+
+            // Links
+            link = link.data(links, d => d.source + "-" + d.target);
+            link.exit().remove();
+            const linkEnter = link.enter().append("line")
+                .attr("class", "link")
+                .attr("id", d => "link-" + d.source + "-" + d.target);
+            link = linkEnter.merge(link);
+
+            // Link Labels (Weights)
+            linkLabel = linkLabel.data(links, d => d.source + "-" + d.target);
+            linkLabel.exit().remove();
+            const linkLabelEnter = linkLabel.enter().append("text")
+                .attr("class", "link-text")
+                .text(d => d.weight);
+            linkLabel = linkLabelEnter.merge(linkLabel);
+
+            // Nodes
+            node = node.data(nodes, d => d.id);
+            node.exit().remove();
+
+            const nodeEnter = node.enter().append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            nodeEnter.append("circle")
+                .attr("class", "node-circle")
+                .attr("r", 20)
+                .attr("id", d => "node-" + d.id);
+
+            nodeEnter.append("text")
+                .attr("class", "node-text")
+                .text(d => d.id);
+
+            node = nodeEnter.merge(node);
+
+            // Restart simulation
+            simulation.nodes(nodes).on("tick", ticked);
+            simulation.force("link").links(links);
+            simulation.alpha(1).restart();
+        }
+
+        function ticked() {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            linkLabel
+                .attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2);
+
+            node
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function log(message) {
+            const panel = document.getElementById('log-panel');
+            const div = document.createElement('div');
+            div.textContent = "> " + message;
+            panel.appendChild(div);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function handleEvent(type, data, message) {
+            if (message) log(message);
+
+            if (type === "snapshot") {
+                renderGraph(data);
+            } else if (type === "highlight") {
+                // Highlight node
+                d3.select("#node-" + data.node).classed("highlighted-node", true);
+                if (data.queue) log("Queue: " + JSON.stringify(data.queue));
+                if (data.stack) log("Stack: " + JSON.stringify(data.stack));
+
+                // Remove highlight after delay? Or keep it to show visited?
+                // Let's mark as visited permanently for this run
+                setTimeout(() => {
+                    d3.select("#node-" + data.node).classed("highlighted-node", false);
+                    d3.select("#node-" + data.node).classed("visited-node", true);
+                }, 500);
+            } else if (type === "mst_edge") {
+                // Highlight edge
+                // Need to find the link. IDs are source-target or target-source depending on how D3 processed it?
+                // Actually D3 links are objects. But we set IDs as source-target.
+                // Since we added edges as undirected in C++, we might have duplicates or need to check both directions.
+                // In C++ we added (u,v) and (v,u). D3 force layout usually handles one link object if we pass it right.
+                // But here we pass all edges.
+                // Let's try selecting both combinations.
+                d3.select("#link-" + data.source + "-" + data.target).classed("mst-link", true);
+                d3.select("#link-" + data.target + "-" + data.source).classed("mst-link", true);
+            } else if (type === "visit_node") {
+                d3.select("#node-" + data.node).classed("highlighted-node", true);
+                log("Distance to " + data.node + ": " + data.dist);
+            } else if (type === "relax_edge") {
+                d3.select("#link-" + data.source + "-" + data.target).classed("highlighted-link", true);
+                d3.select("#link-" + data.target + "-" + data.source).classed("highlighted-link", true);
+                setTimeout(() => {
+                    d3.select("#link-" + data.source + "-" + data.target).classed("highlighted-link", false);
+                    d3.select("#link-" + data.target + "-" + data.source).classed("highlighted-link", false);
+                }, 500);
+            } else if (type === "shortest_path") {
+                // Highlight path
+                for (let i = 0; i < data.length - 1; i++) {
+                    let u = data[i];
+                    let v = data[i + 1];
+                    d3.select("#link-" + u + "-" + v).classed("path-link", true);
+                    d3.select("#link-" + v + "-" + u).classed("path-link", true);
+                }
+            } else if (type === "finished") {
+                // Reset highlights after some time?
+                setTimeout(() => {
+                    d3.selectAll(".visited-node").classed("visited-node", false);
+                    d3.selectAll(".mst-link").classed("mst-link", false);
+                    d3.selectAll(".path-link").classed("path-link", false);
+                }, 3000);
+            }
+        }
+
+        // --- User Actions ---
+        function addNode() {
+            const id = parseInt(document.getElementById("nodeId").value);
+            if (!isNaN(id)) Module.addNode(id);
+        }
+
+        function removeNode() {
+            const id = parseInt(document.getElementById("nodeId").value);
+            if (!isNaN(id)) Module.removeNode(id);
+        }
+
+        function addEdge() {
+            const src = parseInt(document.getElementById("sourceId").value);
+            const tgt = parseInt(document.getElementById("targetId").value);
+            const wgt = parseInt(document.getElementById("weight").value);
+            if (!isNaN(src) && !isNaN(tgt) && !isNaN(wgt)) Module.addEdge(src, tgt, wgt);
+        }
+
+        function removeEdge() {
+            const src = parseInt(document.getElementById("sourceId").value);
+            const tgt = parseInt(document.getElementById("targetId").value);
+            if (!isNaN(src) && !isNaN(tgt)) Module.removeEdge(src, tgt);
+        }
+
+        function runBFS() {
+            const start = parseInt(document.getElementById("startNode").value);
+            if (!isNaN(start)) Module.bfs(start);
+        }
+
+        function runDFS() {
+            const start = parseInt(document.getElementById("startNode").value);
+            if (!isNaN(start)) Module.dfs(start);
+        }
+
+        function runPrim() {
+            const start = parseInt(document.getElementById("startNode").value);
+            if (!isNaN(start)) Module.prim(start);
+        }
+
+        function runDijkstra() {
+            const start = parseInt(document.getElementById("startNode").value);
+            const end = parseInt(document.getElementById("endNode").value);
+            if (!isNaN(start) && !isNaN(end)) Module.dijkstra(start, end);
+        }
+
+        function clearGraph() {
+            Module.clearGraph();
+        }
+    </script>
+</body>
+
+</html>
