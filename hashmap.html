@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Linear Probing Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="sidebar.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        #controls-header {
+            background-color: #1976D2;
+            color: white;
+            padding: 0 20px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            margin-right: 20px;
+            font-weight: 600;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            width: 100px;
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            background-color: #00E676;
+            color: #003300;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #00C853;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button.delete {
+            background-color: #FF5252;
+            color: white;
+        }
+
+        button.delete:hover {
+            background-color: #FF1744;
+        }
+
+        button.search {
+            background-color: #FFD600;
+            color: #333;
+        }
+
+        button.search:hover {
+            background-color: #FFC400;
+        }
+
+        #visualization-container {
+            width: calc(100% - 70px);
+            height: calc(100vh - 70px);
+            margin-top: 70px;
+            margin-left: 70px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+            overflow: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell-group {
+            transition: all 0.5s ease;
+        }
+
+        .bucket-rect {
+            fill: #E3F2FD;
+            stroke: #1976D2;
+            stroke-width: 2;
+            rx: 5;
+            ry: 5;
+        }
+
+        .bucket-index {
+            fill: #1565C0;
+            font-size: 10px;
+            font-weight: bold;
+            text-anchor: start;
+        }
+
+        .item-text {
+            fill: #0D47A1;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mySidebar" class="sidebar">
+        <div class="sidebar-title">Visualizer</div>
+        <a href="heap.html">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M4 20h16v2H4v-2zm0-2h4v-4H4v4zm6 0h4v-4h-4v4zm6 0h4v-4h-4v4zM4 8h16v2H4V8zm0-2h4V2H4v4zm6 0h4V2h-4v4zm6 0h4V2h-4v4z" />
+            </svg>
+            Heap
+        </a>
+        <a href="tree.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z" />
+            </svg>
+            BST
+        </a>
+        <a href="hashmap.html" class="active">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2z" />
+            </svg>
+            Hash Map
+        </a>
+        <a href="graph.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v16H4V4zm2 4v10h12V8H6z" />
+            </svg>
+            Graph
+        </a>
+    </div>
+
+    <div id="controls-header">
+        <h1>Linear Probing</h1>
+
+        <input type="number" id="initSize" placeholder="Size" value="20">
+        <button onclick="setSize()">Set Size</button>
+
+        <input type="number" id="insertValue" placeholder="Val">
+        <button onclick="insertNode()">Insert</button>
+
+        <input type="number" id="deleteValue" placeholder="Val">
+        <button class="delete" onclick="deleteNode()">Delete</button>
+
+        <input type="number" id="searchValue" placeholder="Val">
+        <button class="search" onclick="searchNode()">Search</button>
+
+        <button class="delete" onclick="clearMap()">Clear</button>
+    </div>
+
+    <div id="visualization-container">
+        <svg id="visualization"></svg>
+    </div>
+
+    <script src="visualgo.js"></script>
+
+    <script>
+        const svg = d3.select("#visualization");
+        const g = svg.append("g").attr("transform", "translate(20, 20)");
+
+        const zoom = d3.zoom().on("zoom", (event) => {
+            g.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+
+        function renderHashMap(data) {
+            console.log("Rendering Hash Map:", data);
+
+            if (!data) return;
+
+            const table = data.table || [];
+            const size = data.size || 0;
+
+            const cellWidth = 60;
+            const cellHeight = 60;
+            const gap = 8;
+
+            // Calculate layout
+            const containerWidth = document.getElementById("visualization-container").clientWidth - 40;
+            const cellsPerRow = Math.max(1, Math.floor(containerWidth / (cellWidth + gap)));
+
+            const cellGroups = g.selectAll(".cell-group")
+                .data(table);
+
+            const cellEnter = cellGroups.enter().append("g")
+                .attr("class", "cell-group")
+                .attr("id", (d, i) => "cell-" + i);
+
+            // Cell Rect
+            cellEnter.append("rect")
+                .attr("class", "bucket-rect")
+                .attr("width", cellWidth)
+                .attr("height", cellHeight);
+
+            // Cell Index
+            cellEnter.append("text")
+                .attr("class", "bucket-index")
+                .attr("x", 2)
+                .attr("y", 12)
+                .text((d, i) => i);
+
+            // Cell Value
+            cellEnter.append("text")
+                .attr("class", "item-text")
+                .attr("x", cellWidth / 2)
+                .attr("y", cellHeight / 2 + 5)
+                .text(d => (d === null || d === "DEL") ? "" : d);
+
+            const cellUpdate = cellEnter.merge(cellGroups);
+
+            cellUpdate.transition().duration(500)
+                .attr("transform", (d, i) => {
+                    const col = i % cellsPerRow;
+                    const row = Math.floor(i / cellsPerRow);
+                    return `translate(${col * (cellWidth + gap)}, ${row * (cellHeight + gap)})`;
+                });
+
+            cellUpdate.select(".bucket-rect")
+                .attr("fill", d => (d === null || d === "DEL") ? "#E3F2FD" : "#BBDEFB")
+                .attr("stroke", "#1976D2")
+                .attr("width", cellWidth)
+                .attr("height", cellHeight);
+
+            cellUpdate.select(".item-text")
+                .attr("x", cellWidth / 2)
+                .attr("y", cellHeight / 2 + 5)
+                .text(d => (d === null || d === "DEL") ? "" : d);
+
+            cellUpdate.select(".bucket-index")
+                .text((d, i) => i);
+
+            cellGroups.exit().remove();
+        }
+
+        function highlightItem(idx) {
+            g.selectAll(".cell-group").select("rect").style("fill", null).style("stroke", null).style("stroke-width", null);
+
+            const cell = g.select("#cell-" + idx);
+            if (!cell.empty()) {
+                cell.select("rect")
+                    .transition().duration(200)
+                    .style("fill", "#FFEB3B")
+                    .style("stroke", "#FBC02D")
+                    .style("stroke-width", "3px")
+                    .transition().duration(1000)
+                    .style("fill", "#BBDEFB") // Restore
+                    .style("stroke", "#1976D2")
+                    .style("stroke-width", "2px");
+            }
+        }
+
+        // --- User Actions ---
+        function insertNode() {
+            const val = parseInt(document.getElementById("insertValue").value);
+            if (!isNaN(val) && Module.insertHashMap) {
+                const success = Module.insertHashMap(val);
+                if (!success) {
+                    alert("Value " + val + " already exists or table is full!");
+                }
+            }
+        }
+
+        function deleteNode() {
+            const val = parseInt(document.getElementById("deleteValue").value);
+            if (!isNaN(val) && Module.deleteHashMap) Module.deleteHashMap(val);
+        }
+
+        function searchNode() {
+            const val = parseInt(document.getElementById("searchValue").value);
+            if (!isNaN(val) && Module.searchHashMap) Module.searchHashMap(val);
+        }
+
+        function clearMap() {
+            if (Module.clearHashMap) Module.clearHashMap();
+        }
+
+        function setSize() {
+            const size = parseInt(document.getElementById("initSize").value);
+            if (!isNaN(size) && size > 0) {
+                if (size > 118) {
+                    alert("Maximum size is 118");
+                    return;
+                }
+                if (Module.initHashMap) {
+                    Module.initHashMap(size);
+                    // Trigger an update or clear to refresh visualization
+                    if (Module.clearHashMap) Module.clearHashMap();
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

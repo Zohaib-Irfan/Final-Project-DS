@@ -1,0 +1,360 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Heap Structure</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="sidebar.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        #controls-header {
+            background-color: #1976D2;
+            /* Brighter Blue */
+            color: white;
+            padding: 0 20px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            /* Above sidebar */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            margin-right: 20px;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            width: 100px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            background-color: #00E676;
+            /* Bright Green */
+            color: #003300;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #00C853;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button.delete {
+            background-color: #FF5252;
+            /* Bright Red */
+            color: white;
+        }
+
+        button.delete:hover {
+            background-color: #FF1744;
+        }
+
+        #visualization-container {
+            width: calc(100% - 70px);
+            /* Subtract sidebar width */
+            height: calc(100vh - 70px);
+            /* Subtract header height */
+            margin-top: 70px;
+            margin-left: 70px;
+            background-color: #fff;
+            /* White background for vis */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node-circle {
+            fill: #29B6F6;
+            /* Brighter Blue Node */
+            stroke: #0288D1;
+            stroke-width: 2;
+        }
+
+        .node-text {
+            fill: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        .link {
+            fill: none;
+            stroke: #B0BEC5;
+            stroke-width: 2;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mySidebar" class="sidebar">
+        <div class="sidebar-title">Visualizer</div>
+        <a href="heap.html">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M4 20h16v2H4v-2zm0-2h4v-4H4v4zm6 0h4v-4h-4v4zm6 0h4v-4h-4v4zM4 8h16v2H4V8zm0-2h4V2H4v4zm6 0h4V2h-4v4zm6 0h4V2h-4v4z" />
+            </svg>
+            Heap
+        </a>
+        <a href="tree.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z" />
+            </svg>
+            BST
+        </a>
+        <a href="hashmap.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2z" />
+            </svg>
+            Hash Map
+        </a>
+        <a href="graph.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v16H4V4zm2 4v10h12V8H6z" />
+            </svg>
+            Graph
+        </a>
+    </div>
+
+    <div id="controls-header">
+        <h1 id="header-title">Max-Heap Visualizer</h1>
+
+        <select id="heapType" onchange="toggleHeapMode()">
+            <option value="max">Max Heap</option>
+            <option value="min">Min Heap</option>
+        </select>
+
+        <input type="number" id="nodeValue" value="50" placeholder="Value">
+        <button onclick="insertNode()">Insert</button>
+        <button class="delete" onclick="extractRoot()">Extract Root</button>
+        <button class="delete" onclick="clearHeap()">Clear</button>
+    </div>
+
+    <div id="visualization-container">
+        <svg id="visualization"></svg>
+    </div>
+
+    <script src="visualgo.js"></script>
+
+    <script>
+        const svg = d3.select("#visualization");
+
+        // Zoom behavior
+        const g = svg.append("g");
+        const zoom = d3.zoom().on("zoom", (event) => {
+            g.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+
+        // Tree layout configuration
+        const treeLayout = d3.tree().nodeSize([60, 80]); // Width, Height spacing
+
+        // --- JavaScript Function Called BY C++ ---
+        function renderHeap(heapData) {
+            console.log("JS: renderHeap called with data:", heapData);
+
+            if (!heapData || heapData.length === 0) {
+                console.log("JS: Heap data is empty or null");
+                g.selectAll("*").remove();
+                return;
+            }
+
+            // Convert array to hierarchical data for D3
+            const root = arrayToTree(heapData);
+            const hierarchy = d3.hierarchy(root);
+            const treeData = treeLayout(hierarchy);
+
+            // Update Links
+            const links = g.selectAll(".link")
+                .data(treeData.links(), d => d.target.data.id);
+
+            links.enter().append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y))
+                .merge(links)
+                .transition().duration(500)
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y));
+
+            links.exit().remove();
+
+            // Update Nodes
+            const nodes = g.selectAll(".node")
+                .data(treeData.descendants(), d => d.data.id);
+
+            const nodeEnter = nodes.enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 0);
+
+            nodeEnter.append("circle")
+                .attr("class", "node-circle")
+                .attr("r", 20);
+
+            nodeEnter.append("text")
+                .attr("class", "node-text")
+                .text(d => d.data.value);
+
+            const nodeUpdate = nodeEnter.merge(nodes);
+
+            nodeUpdate.transition().duration(500)
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 1);
+
+            nodeUpdate.select("text").text(d => d.data.value);
+
+            nodes.exit().transition().duration(500).style("opacity", 0).remove();
+
+            // Auto-fit to screen
+            fitToScreen(treeData);
+        }
+
+        function fitToScreen(root) {
+            const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+
+            root.descendants().forEach(d => {
+                if (d.x < bounds.minX) bounds.minX = d.x;
+                if (d.x > bounds.maxX) bounds.maxX = d.x;
+                if (d.y < bounds.minY) bounds.minY = d.y;
+                if (d.y > bounds.maxY) bounds.maxY = d.y;
+            });
+
+            // Add node radius padding
+            const padding = 40;
+            const treeWidth = bounds.maxX - bounds.minX + padding * 2;
+            const treeHeight = bounds.maxY - bounds.minY + padding * 2;
+
+            const container = document.getElementById('visualization-container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            // Calculate scale to fit
+            const scaleX = containerWidth / treeWidth;
+            const scaleY = containerHeight / treeHeight;
+            let scale = Math.min(scaleX, scaleY);
+
+            // Limit max scale so we don't zoom in too much on small trees
+            if (scale > 1.2) scale = 1.2;
+            // Limit min scale to prevent it from disappearing
+            if (scale < 0.1) scale = 0.1;
+
+            // Calculate center of the tree
+            const centerX = (bounds.minX + bounds.maxX) / 2;
+            const centerY = (bounds.minY + bounds.maxY) / 2;
+
+            const translateX = (containerWidth / 2) - (centerX * scale);
+            const translateY_Centered = (containerHeight / 2) - (centerY * scale);
+
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(translateX, translateY_Centered).scale(scale)
+            );
+        }
+
+        // Helper to convert heap array to tree object
+        function arrayToTree(arr) {
+            if (arr.length === 0) return null;
+
+            let nodes = arr.map((val, i) => ({ id: i, value: val, children: [] }));
+
+            for (let i = 0; i < nodes.length; i++) {
+                let left = 2 * i + 1;
+                let right = 2 * i + 2;
+
+                if (left < nodes.length) nodes[i].children.push(nodes[left]);
+                if (right < nodes.length) nodes[i].children.push(nodes[right]);
+            }
+
+            return nodes[0];
+        }
+
+        // --- User Actions ---
+        function insertNode() {
+            const input = document.getElementById("nodeValue");
+            const value = parseInt(input.value);
+            console.log("JS: insertNode called with value:", value);
+
+            if (!isNaN(value)) {
+                if (Module && Module.insertHeap) {
+                    console.log("JS: Calling Module.insertHeap");
+                    Module.insertHeap(value);
+                } else {
+                    console.error("JS: Module.insertHeap is not defined");
+                }
+            }
+        }
+
+        function extractRoot() {
+            if (Module && Module.extractRoot) {
+                Module.extractRoot();
+            }
+        }
+
+        function clearHeap() {
+            if (Module && Module.clearHeap) {
+                Module.clearHeap();
+            }
+        }
+
+        function toggleHeapMode() {
+            const select = document.getElementById("heapType");
+            const isMinHeap = select.value === "min";
+
+            // Update Title
+            document.getElementById("header-title").innerText = isMinHeap ? "Min-Heap Visualizer" : "Max-Heap Visualizer";
+
+            // Call C++ to switch mode and re-heapify
+            if (Module && Module.toggleHeapType) {
+                Module.toggleHeapType(isMinHeap);
+            }
+        }
+    </script>
+</body>
+
+</html>
