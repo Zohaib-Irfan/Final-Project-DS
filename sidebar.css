@@ -1,0 +1,73 @@
+/* Sidebar Styles */
+.sidebar {
+    height: calc(100% - 70px);
+    width: 70px;
+    /* Slightly wider for icons */
+    position: fixed;
+    z-index: 1000;
+    top: 70px;
+    left: 0;
+    background-color: #263238;
+    backdrop-filter: blur(10px);
+    overflow-x: hidden;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-top: 20px;
+    white-space: nowrap;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar:hover {
+    width: 240px;
+}
+
+.sidebar-title {
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 15px 25px;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar:hover .sidebar-title {
+    opacity: 1;
+    transition-delay: 0.1s;
+}
+
+.sidebar a {
+    padding: 15px 20px;
+    text-decoration: none;
+    font-size: 16px;
+    color: #cfd8dc;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    border-left: 4px solid transparent;
+}
+
+.sidebar a:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 4px solid #00E676;
+    padding-left: 25px;
+}
+
+/* Icons */
+.sidebar a svg {
+    min-width: 24px;
+    width: 24px;
+    height: 24px;
+    margin-right: 20px;
+    fill: currentColor;
+    transition: fill 0.2s;
+}
+
+.sidebar a:hover svg {
+    fill: #00E676;
+}

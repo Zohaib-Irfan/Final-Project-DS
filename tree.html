@@ -1,0 +1,374 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>BST Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="sidebar.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        #controls-header {
+            background-color: #1976D2;
+            /* Brighter Blue */
+            color: white;
+            padding: 0 20px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            margin-right: 20px;
+            font-weight: 600;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            width: 80px;
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            background-color: #00E676;
+            /* Bright Green */
+            color: #003300;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #00C853;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button.delete {
+            background-color: #FF5252;
+            /* Bright Red */
+            color: white;
+        }
+
+        button.delete:hover {
+            background-color: #FF1744;
+        }
+
+        button.search {
+            background-color: #FFD600;
+            /* Bright Yellow */
+            color: #333;
+        }
+
+        button.search:hover {
+            background-color: #FFC400;
+        }
+
+        #visualization-container {
+            width: calc(100% - 70px);
+            height: calc(100vh - 70px);
+            margin-top: 70px;
+            margin-left: 70px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node-circle {
+            fill: #fff;
+            stroke: #333;
+            stroke-width: 2;
+            transition: all 0.3s;
+        }
+
+        .node-text {
+            fill: #333;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2;
+            transition: all 0.3s;
+        }
+
+        .highlighted-node {
+            fill: #FFEB3B !important;
+            stroke: #FBC02D !important;
+            stroke-width: 3 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mySidebar" class="sidebar">
+        <div class="sidebar-title">Visualizer</div>
+        <a href="heap.html">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M4 20h16v2H4v-2zm0-2h4v-4H4v4zm6 0h4v-4h-4v4zm6 0h4v-4h-4v4zM4 8h16v2H4V8zm0-2h4V2H4v4zm6 0h4V2h-4v4zm6 0h4V2h-4v4z" />
+            </svg>
+            Heap
+        </a>
+        <a href="tree.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3z" />
+            </svg>
+            BST
+        </a>
+        <a href="hashmap.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2z" />
+            </svg>
+            Hash Map
+        </a>
+        <a href="graph.html">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 4h16v16H4V4zm2 4v10h12V8H6z" />
+            </svg>
+            Graph
+        </a>
+    </div>
+
+    <div id="controls-header">
+        <h1>BST Visualizer</h1>
+
+        <input type="number" id="insertValue" placeholder="Val">
+        <button onclick="insertNode()">Insert</button>
+
+        <input type="number" id="deleteValue" placeholder="Val">
+        <button class="delete" onclick="deleteNode()">Delete</button>
+
+        <input type="number" id="searchValue" placeholder="Val">
+        <button class="search" onclick="searchNode()">Search</button>
+
+        <div
+            style="display: flex; align-items: center; margin-left: 10px; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 6px;">
+            <input type="checkbox" id="avlToggle" onchange="toggleAVL()"
+                style="width: auto; margin-right: 5px; box-shadow: none;">
+            <label for="avlToggle" style="cursor: pointer; font-weight: 600; font-size: 0.9rem;">AVL Mode</label>
+        </div>
+
+        <button class="delete" onclick="clearTree()">Clear</button>
+    </div>
+
+    <div id="visualization-container">
+        <svg id="visualization"></svg>
+    </div>
+
+    <div id="status"
+        style="position: fixed; bottom: 10px; left: 10px; background: #333; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px;">
+        Loading WASM...</div>
+
+    <script>
+        var Module = {
+            onRuntimeInitialized: function () {
+                const status = document.getElementById('status');
+                if (status) {
+                    status.textContent = "WASM Ready";
+                    status.style.backgroundColor = "#4CAF50";
+                }
+                console.log("WASM Initialized");
+            },
+            print: function (text) { console.log("WASM stdout:", text); },
+            printErr: function (text) { console.error("WASM stderr:", text); }
+        };
+    </script>
+    <script src="visualgo.js"></script>
+
+    <script>
+        const svg = d3.select("#visualization");
+        const g = svg.append("g");
+
+        const zoom = d3.zoom().on("zoom", (event) => {
+            g.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+
+        const treeLayout = d3.tree().nodeSize([50, 70]);
+
+        function renderTree(treeData) {
+            console.log("Rendering tree:", treeData);
+
+            // Clear previous highlights
+            g.selectAll(".node-circle").classed("highlighted-node", false);
+
+            if (!treeData) {
+                g.selectAll("*").remove();
+                return;
+            }
+
+            const root = d3.hierarchy(treeData);
+            const treeMap = treeLayout(root);
+
+            // Update Links
+            const links = g.selectAll(".link")
+                .data(treeMap.links(), d => d.target.data.id);
+
+            links.enter().append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y))
+                .merge(links)
+                .transition().duration(500)
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y));
+
+            links.exit().remove();
+
+            // Update Nodes
+            const nodes = g.selectAll(".node")
+                .data(treeMap.descendants(), d => d.data.id);
+
+            const nodeEnter = nodes.enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 0);
+
+            nodeEnter.append("circle")
+                .attr("class", "node-circle")
+                .attr("r", 20)
+                .attr("id", d => "node-" + d.data.id); // Assign ID for highlighting
+
+            nodeEnter.append("text")
+                .attr("class", "node-text")
+                .text(d => d.data.value);
+
+            const nodeUpdate = nodeEnter.merge(nodes);
+
+            nodeUpdate.transition().duration(500)
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("opacity", 1);
+
+            nodeUpdate.select("text").text(d => d.data.value);
+
+            nodes.exit().transition().duration(500).style("opacity", 0).remove();
+
+            fitToScreen(root);
+        }
+
+        function fitToScreen(root) {
+            const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+            root.descendants().forEach(d => {
+                if (d.x < bounds.minX) bounds.minX = d.x;
+                if (d.x > bounds.maxX) bounds.maxX = d.x;
+                if (d.y < bounds.minY) bounds.minY = d.y;
+                if (d.y > bounds.maxY) bounds.maxY = d.y;
+            });
+
+            const padding = 40;
+            const width = bounds.maxX - bounds.minX + padding * 2;
+            const height = bounds.maxY - bounds.minY + padding * 2;
+
+            const container = document.getElementById('visualization-container');
+            const scale = Math.min(
+                container.clientWidth / width,
+                container.clientHeight / height
+            );
+
+            // Clamp scale
+            const finalScale = Math.min(Math.max(scale, 0.2), 1.5);
+
+            const centerX = (bounds.minX + bounds.maxX) / 2;
+            const centerY = (bounds.minY + bounds.maxY) / 2;
+
+            const tx = container.clientWidth / 2 - centerX * finalScale;
+            const ty = container.clientHeight / 2 - centerY * finalScale;
+
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(tx, ty).scale(finalScale)
+            );
+        }
+
+        function highlightPath(pathIds) {
+            // Reset previous highlights
+            g.selectAll(".node-circle").classed("highlighted-node", false);
+
+            // Animate highlighting
+            pathIds.forEach((id, index) => {
+                setTimeout(() => {
+                    g.select("#node-" + id).classed("highlighted-node", true);
+                }, index * 500); // 500ms delay per step
+            });
+        }
+
+        function handleEvent(type, data, message) {
+            console.log("Event:", type, message);
+            if (type === "snapshot") {
+                renderTree(data);
+            } else if (type === "highlight") {
+                highlightPath(data);
+            }
+        }
+
+        function toggleAVL() {
+            const isChecked = document.getElementById('avlToggle').checked;
+            if (Module.setAVL) {
+                Module.setAVL(isChecked);
+            }
+        }
+
+        // --- User Actions ---
+        function insertNode() {
+            const val = parseInt(document.getElementById("insertValue").value);
+            if (!isNaN(val)) Module.insertBST(val);
+        }
+
+        function deleteNode() {
+            const val = parseInt(document.getElementById("deleteValue").value);
+            if (!isNaN(val)) Module.deleteBST(val);
+        }
+
+        function searchNode() {
+            const val = parseInt(document.getElementById("searchValue").value);
+            if (!isNaN(val)) Module.searchBST(val);
+        }
+
+        function clearTree() {
+            Module.clearBST();
+        }
+    </script>
+</body>
+
+</html>
