@@ -22,23 +22,8 @@ int nextId = 0;
 
 // Helper to serialize tree to JS object
 // Helper to serialize tree to JS object
-val getTreeData(Node* node) {
-    if (!node) return val::null();
-
-    val obj = val::object();
-    obj.set("id", node->id);
-    obj.set("value", node->data);
-    
-    val children = val::array();
-    if (node->left) children.call<void>("push", getTreeData(node->left));
-    if (node->right) children.call<void>("push", getTreeData(node->right));
-    
-    if (node->left || node->right) {
-        obj.set("children", children);
-    }
-
-    return obj;
-}
+// Helper to serialize tree to JS object - Forward declaration
+val getTreeData(Node* node);
 
 // Helper to log events to JS
 void logEvent(std::string type, val data, std::string message) {
@@ -81,7 +66,8 @@ Node* rightRotate(Node* y) {
     x->height = max(getHeight(x->left), getHeight(x->right)) + 1;
 
     // Snapshot after rotation
-    logEvent("snapshot", getTreeData(bstRoot), "Rotated");
+    // Snapshot removed to avoid broken tree state
+    // logEvent("snapshot", getTreeData(bstRoot), "Rotated");
 
     return x;
 }
@@ -105,7 +91,8 @@ Node* leftRotate(Node* x) {
     y->height = max(getHeight(y->left), getHeight(y->right)) + 1;
 
     // Snapshot after rotation
-    logEvent("snapshot", getTreeData(bstRoot), "Rotated");
+    // Snapshot removed to avoid broken tree state
+    // logEvent("snapshot", getTreeData(bstRoot), "Rotated");
 
     return y;
 }
@@ -113,6 +100,27 @@ Node* leftRotate(Node* x) {
 int getBalance(Node* N) {
     if (N == nullptr) return 0;
     return getHeight(N->left) - getHeight(N->right);
+}
+
+// Helper to serialize tree to JS object
+val getTreeData(Node* node) {
+    if (!node) return val::null();
+
+    val obj = val::object();
+    obj.set("id", node->id);
+    obj.set("value", node->data);
+    obj.set("height", node->height);
+    obj.set("balanceFactor", getBalance(node));
+    
+    val children = val::array();
+    if (node->left) children.call<void>("push", getTreeData(node->left));
+    if (node->right) children.call<void>("push", getTreeData(node->right));
+    
+    if (node->left || node->right) {
+        obj.set("children", children);
+    }
+
+    return obj;
 }
 
 void inorderExtraction(Node* root, std::vector<int>& nodes) {
@@ -169,8 +177,10 @@ Node* insertRec(Node* node, int value) {
     }
     if (value < node->data) {
         node->left = insertRec(node->left, value);
+        if (useAVL) logEvent("snapshot", getTreeData(bstRoot), "Rebalancing...");
     } else if (value > node->data) {
         node->right = insertRec(node->right, value);
+        if (useAVL) logEvent("snapshot", getTreeData(bstRoot), "Rebalancing...");
     } else {
         return node; // Duplicate keys not allowed
     }
@@ -223,8 +233,10 @@ Node* deleteRec(Node* root, int value) {
 
     if (value < root->data) {
         root->left = deleteRec(root->left, value);
+        if (useAVL) logEvent("snapshot", getTreeData(bstRoot), "Rebalancing...");
     } else if (value > root->data) {
         root->right = deleteRec(root->right, value);
+        if (useAVL) logEvent("snapshot", getTreeData(bstRoot), "Rebalancing...");
     } else {
         if (!root->left) {
             Node* temp = root->right;
@@ -239,6 +251,7 @@ Node* deleteRec(Node* root, int value) {
         Node* temp = minValueNode(root->right);
         root->data = temp->data;
         root->right = deleteRec(root->right, temp->data);
+        if (useAVL) logEvent("snapshot", getTreeData(bstRoot), "Rebalancing...");
     }
     
     if (!useAVL) return root;

@@ -34,17 +34,29 @@ public:
         // Check if already exists
         if (searchInternal(key) != -1) return false;
 
+        val probeSteps = val::array();
         int h = hash(key);
         int start = h;
         
         // Linear Probe for empty slot
         while (table[h] != EMPTY && table[h] != DELETED) {
+            val step = val::object();
+            step.set("index", h);
+            step.set("type", "collision");
+            step.set("existingValue", table[h]);
+            probeSteps.call<void>("push", step);
+
             h = (h + 1) % size;
             if (h == start) return false; // Table is full
         }
 
+        val step = val::object();
+        step.set("index", h);
+        step.set("type", "insert");
+        probeSteps.call<void>("push", step);
+
         table[h] = key;
-        updateVisualization();
+        updateVisualizationWithAnimation(probeSteps);
         return true;
     }
 
@@ -90,6 +102,22 @@ public:
         data.set("size", size);
 
         val::global("renderHashMap").call<void>("call", val::undefined(), data);
+    }
+
+    void updateVisualizationWithAnimation(val probeSteps) {
+        val js_table = val::array();
+        for (int val : table) {
+            if (val == EMPTY) js_table.call<void>("push", val::null());
+            else if (val == DELETED) js_table.call<void>("push", std::string("DEL")); 
+            else js_table.call<void>("push", val);
+        }
+
+        val data = val::object();
+        data.set("table", js_table);
+        data.set("size", size);
+        data.set("steps", probeSteps);
+
+        val::global("animateHashMap").call<void>("call", val::undefined(), data);
     }
 };
 

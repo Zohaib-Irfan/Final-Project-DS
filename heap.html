@@ -126,6 +126,53 @@
             stroke: #B0BEC5;
             stroke-width: 2;
         }
+
+        /* Tape Styles */
+        #tape-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .tape-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 2px;
+        }
+
+        .tape-cell {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #1976D2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #E3F2FD;
+            font-weight: bold;
+            color: #0D47A1;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .tape-index {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+        }
     </style>
 </head>
 
@@ -175,6 +222,7 @@
 
     <div id="visualization-container">
         <svg id="visualization"></svg>
+        <div id="tape-container"></div>
     </div>
 
     <script src="visualgo.js"></script>
@@ -196,7 +244,14 @@
         function renderHeap(heapData) {
             console.log("JS: renderHeap called with data:", heapData);
 
-            if (!heapData || heapData.length === 0) {
+            if (!heapData) heapData = [];
+
+            // Prepare data for tape (1-based indexing)
+            // We prepend 'null' so that the actual data starts at index 1
+            const tapeData = [null, ...heapData];
+            renderTape(tapeData);
+
+            if (heapData.length === 0) {
                 console.log("JS: Heap data is empty or null");
                 g.selectAll("*").remove();
                 return;
@@ -282,7 +337,7 @@
             // Limit max scale so we don't zoom in too much on small trees
             if (scale > 1.2) scale = 1.2;
             // Limit min scale to prevent it from disappearing
-            if (scale < 0.1) scale = 0.1;
+            if (scale < 0.01) scale = 0.01;
 
             // Calculate center of the tree
             const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -312,6 +367,79 @@
             }
 
             return nodes[0];
+        }
+
+        function renderTape(data) {
+            const container = d3.select("#tape-container");
+
+            let content = container.select("#tape-content");
+            if (content.empty()) {
+                content = container.append("div")
+                    .attr("id", "tape-content")
+                    .style("display", "flex")
+                    .style("align-items", "center")
+                    .style("transform-origin", "left center")
+                    .style("transition", "transform 0.5s ease");
+            }
+
+            // Bind data to wrappers inside content
+            const wrappers = content.selectAll(".tape-wrapper")
+                .data(data);
+
+            // Enter
+            const wrapperEnter = wrappers.enter().append("div")
+                .attr("class", "tape-wrapper");
+
+            wrapperEnter.append("div")
+                .attr("class", "tape-cell");
+
+            wrapperEnter.append("div")
+                .attr("class", "tape-index");
+
+            // Update
+            const wrapperUpdate = wrapperEnter.merge(wrappers);
+
+            wrapperUpdate.select(".tape-cell")
+                .text(d => d === null ? "NULL" : d)
+                .style("background-color", (d, i) => i === 0 ? "#f5f5f5" : "#E3F2FD")
+                .style("color", (d, i) => i === 0 ? "#aaa" : "#0D47A1")
+                .style("border-color", (d, i) => i === 0 ? "#ddd" : "#1976D2")
+                .style("font-style", (d, i) => i === 0 ? "italic" : "normal");
+
+            wrapperUpdate.select(".tape-index")
+                .text((d, i) => i);
+
+            // Exit
+            wrappers.exit().remove();
+
+            // Fit tape to screen
+            fitTapeToScreen(data.length);
+        }
+
+        function fitTapeToScreen(itemCount) {
+            const container = document.getElementById("tape-container");
+            if (!container) return;
+
+            const containerWidth = container.clientWidth;
+            const itemWidth = 54;
+            const totalWidth = itemCount * itemWidth;
+            const availableWidth = containerWidth - 40;
+
+            let scale = 1;
+            if (totalWidth > 0) {
+                scale = availableWidth / totalWidth;
+            }
+
+            if (scale > 1.2) scale = 1.2;
+            if (scale < 0.05) scale = 0.05;
+
+            let translateX = 0;
+            if (totalWidth * scale < availableWidth) {
+                translateX = (availableWidth - (totalWidth * scale)) / 2;
+            }
+
+            d3.select("#tape-content")
+                .style("transform", `translateX(${translateX}px) scale(${scale})`);
         }
 
         // --- User Actions ---

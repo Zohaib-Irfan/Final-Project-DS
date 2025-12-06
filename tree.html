@@ -187,11 +187,17 @@
             <label for="avlToggle" style="cursor: pointer; font-weight: 600; font-size: 0.9rem;">AVL Mode</label>
         </div>
 
+        <div style="margin-left: auto; margin-right: 20px; font-weight: bold; color: white;">
+            Tree Height: <span id="treeHeight">0</span>
+        </div>
         <button class="delete" onclick="clearTree()">Clear</button>
     </div>
 
     <div id="visualization-container">
         <svg id="visualization"></svg>
+        <div id="message-overlay"
+            style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px; border-radius: 20px; font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none;">
+        </div>
     </div>
 
     <div id="status"
@@ -233,11 +239,49 @@
 
             if (!treeData) {
                 g.selectAll("*").remove();
+                const hSpan = document.getElementById('treeHeight');
+                if (hSpan) hSpan.textContent = "0";
                 return;
             }
 
             const root = d3.hierarchy(treeData);
+
+            // Calculate and Display Tree Height
+            const treeHeight = root.height + 1;
+            const treeHeightSpan = document.getElementById('treeHeight');
+            if (treeHeightSpan) {
+                treeHeightSpan.textContent = treeHeight;
+            }
+
+            // Calculate Balance Factors for each node
+            root.descendants().forEach(d => {
+                let leftH = 0;
+                let rightH = 0;
+
+                if (d.children) {
+                    d.children.forEach(child => {
+                        if (child.data.value < d.data.value) {
+                            leftH = child.height + 1;
+                        } else {
+                            rightH = child.height + 1;
+                        }
+                    });
+                }
+
+                d.data.balanceFactor = leftH - rightH;
+            });
+
             const treeMap = treeLayout(root);
+
+            const linkGen = d3.linkVertical()
+                .x(d => d.x)
+                .y(d => d.y);
+
+            const linkPath = d => {
+                const source = { x: d.source.x, y: d.source.y + 20 };
+                const target = { x: d.target.x, y: d.target.y - 20 };
+                return linkGen({ source, target });
+            };
 
             // Update Links
             const links = g.selectAll(".link")
@@ -245,14 +289,10 @@
 
             links.enter().append("path")
                 .attr("class", "link")
-                .attr("d", d3.linkVertical()
-                    .x(d => d.x)
-                    .y(d => d.y))
+                .attr("d", linkPath)
                 .merge(links)
                 .transition().duration(500)
-                .attr("d", d3.linkVertical()
-                    .x(d => d.x)
-                    .y(d => d.y));
+                .attr("d", linkPath);
 
             links.exit().remove();
 
@@ -274,13 +314,31 @@
                 .attr("class", "node-text")
                 .text(d => d.data.value);
 
+            // Add Balance Factor Text
+            nodeEnter.append("text")
+                .attr("class", "node-balance")
+                .attr("x", 0)      // Centered horizontally
+                .attr("y", -30)    // Position above the node
+                .style("font-size", "12px")
+                .style("font-weight", "bold")
+                .style("fill", "#00008B") // Dark Blue
+                .style("text-anchor", "middle")
+                .style("dominant-baseline", "auto");
+
             const nodeUpdate = nodeEnter.merge(nodes);
 
             nodeUpdate.transition().duration(500)
                 .attr("transform", d => `translate(${d.x},${d.y})`)
                 .style("opacity", 1);
 
-            nodeUpdate.select("text").text(d => d.data.value);
+            nodeUpdate.select(".node-text").text(d => d.data.value);
+
+            // Update Balance Factor
+            nodeUpdate.select(".node-balance")
+                .attr("x", 0)
+                .attr("y", -30)
+                .style("text-anchor", "middle")
+                .text(d => typeof d.data.balanceFactor !== 'undefined' ? `BF: ${d.data.balanceFactor}` : "");
 
             nodes.exit().transition().duration(500).style("opacity", 0).remove();
 
@@ -333,13 +391,51 @@
             });
         }
 
+        const eventQueue = [];
+        let isProcessing = false;
+
         function handleEvent(type, data, message) {
-            console.log("Event:", type, message);
-            if (type === "snapshot") {
-                renderTree(data);
-            } else if (type === "highlight") {
-                highlightPath(data);
+            console.log("Queueing Event:", type, message);
+            eventQueue.push({ type, data, message });
+            processQueue();
+        }
+
+        async function processQueue() {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const messageOverlay = document.getElementById('message-overlay');
+
+            while (eventQueue.length > 0) {
+                const event = eventQueue.shift();
+
+                // Show message if present
+                if (event.message) {
+                    messageOverlay.textContent = event.message;
+                    messageOverlay.style.opacity = 1;
+                } else {
+                    messageOverlay.style.opacity = 0;
+                }
+
+                if (event.type === "snapshot") {
+                    renderTree(event.data);
+                    await new Promise(r => setTimeout(r, 1000)); // Wait for render transition
+                } else if (event.type === "highlight") {
+                    highlightPath(event.data);
+                    // Wait for highlight animation to finish
+                    const duration = event.data.length * 500 + 500;
+                    await new Promise(r => setTimeout(r, duration));
+                }
             }
+
+            // Clear message after queue is empty
+            setTimeout(() => {
+                if (eventQueue.length === 0) {
+                    messageOverlay.style.opacity = 0;
+                }
+            }, 1000);
+
+            isProcessing = false;
         }
 
         function toggleAVL() {

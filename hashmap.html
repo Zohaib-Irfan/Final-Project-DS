@@ -86,10 +86,26 @@
             background-color: #FFC400;
         }
 
+        #status-bar {
+            position: fixed;
+            top: 70px;
+            left: 70px;
+            width: calc(100% - 70px);
+            height: 40px;
+            background-color: #fff3e0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            z-index: 1900;
+            border-bottom: 1px solid #ddd;
+        }
+
         #visualization-container {
             width: calc(100% - 70px);
-            height: calc(100vh - 70px);
-            margin-top: 70px;
+            height: calc(100vh - 110px);
+            margin-top: 110px;
             margin-left: 70px;
             background-color: #fff;
             display: flex;
@@ -131,6 +147,51 @@
             font-weight: bold;
             text-anchor: middle;
             dominant-baseline: central;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .notification {
+            background-color: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            min-width: 200px;
+        }
+
+        .notification.error {
+            background-color: #D32F2F;
+            /* Red */
+        }
+
+        .notification.warning {
+            background-color: #F57C00;
+            /* Orange */
+        }
+
+        .notification.success {
+            background-color: #388E3C;
+            /* Green */
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
         }
     </style>
 </head>
@@ -182,6 +243,10 @@
 
         <button class="delete" onclick="clearMap()">Clear</button>
     </div>
+
+    <div id="status-bar">Ready</div>
+
+    <div id="notification-container" class="notification-container"></div>
 
     <div id="visualization-container">
         <svg id="visualization"></svg>
@@ -282,6 +347,134 @@
                     .style("stroke", "#1976D2")
                     .style("stroke-width", "2px");
             }
+        }
+
+        function animateHashMap(data) {
+            console.log("Animating Hash Map:", data);
+            if (!data || !data.steps) {
+                renderHashMap(data);
+                const sb = document.getElementById("status-bar");
+                if (sb) sb.textContent = "Ready";
+                return;
+            }
+
+            const steps = data.steps;
+            const finalTableData = data;
+
+            toggleControls(false);
+
+            let i = 0;
+            function nextStep() {
+                if (i >= steps.length) {
+                    renderHashMap(finalTableData);
+                    toggleControls(true);
+                    const sb = document.getElementById("status-bar");
+                    if (sb) {
+                        sb.textContent = "Inserted " + (finalTableData.table[steps[steps.length - 1].index] || "");
+                        sb.style.backgroundColor = "#C8E6C9";
+                        setTimeout(() => {
+                            sb.style.backgroundColor = "#fff3e0";
+                            sb.textContent = "Ready";
+                        }, 2000);
+                    }
+                    return;
+                }
+
+                const step = steps[i];
+                const idx = step.index;
+                const type = step.type;
+                const existingVal = step.existingValue;
+
+                const cell = g.select("#cell-" + idx);
+                const rect = cell.select("rect");
+                const statusBar = document.getElementById("status-bar");
+
+                // Phase 1: Checking (Yellow)
+                if (statusBar) {
+                    statusBar.textContent = `Checking index ${idx}...`;
+                    statusBar.style.backgroundColor = "#FFF9C4"; // Light Yellow
+                }
+
+                rect.transition().duration(400)
+                    .style("fill", "#FFF9C4")
+                    .style("stroke", "#FBC02D")
+                    .style("stroke-width", "3px")
+                    .on("end", () => {
+                        // Phase 2: Result (Red or Green)
+                        if (type === "collision") {
+                            const valText = (existingVal !== undefined) ? ` (Value: ${existingVal})` : "";
+                            if (statusBar) {
+                                statusBar.textContent = `Collision at index ${idx}${valText}. Probing next...`;
+                                statusBar.style.backgroundColor = "#FFCDD2";
+                            }
+
+                            showNotification(`Collision at index ${idx}${valText}!`, 'error');
+
+                            // Flash Red for collision
+                            rect.transition().duration(400)
+                                .style("fill", "#FFCDD2")
+                                .style("stroke", "#D32F2F")
+                                .style("stroke-width", "3px")
+                                .transition().duration(400)
+                                .style("fill", "#E3F2FD")
+                                .style("stroke", "#1976D2")
+                                .style("stroke-width", "2px")
+                                .on("end", () => {
+                                    i++;
+                                    nextStep();
+                                });
+                        } else if (type === "insert") {
+                            if (statusBar) {
+                                statusBar.textContent = `Found empty slot at index ${idx}. Inserting...`;
+                                statusBar.style.backgroundColor = "#C8E6C9";
+                            }
+
+                            showNotification(`Inserted at index ${idx}`, 'success');
+
+                            // Flash Green for insert
+                            rect.transition().duration(400)
+                                .style("fill", "#C8E6C9")
+                                .style("stroke", "#388E3C")
+                                .style("stroke-width", "3px")
+                                .on("end", () => {
+                                    i++;
+                                    nextStep();
+                                });
+                        }
+                    });
+            }
+
+            nextStep();
+        }
+
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const notif = document.createElement('div');
+            notif.className = `notification ${type}`;
+            notif.textContent = message;
+
+            container.appendChild(notif);
+
+            // Trigger reflow
+            void notif.offsetWidth;
+
+            notif.classList.add('show');
+
+            setTimeout(() => {
+                notif.classList.remove('show');
+                setTimeout(() => {
+                    if (container.contains(notif)) {
+                        container.removeChild(notif);
+                    }
+                }, 300);
+            }, 2000);
+        }
+
+        function toggleControls(enable) {
+            const buttons = document.querySelectorAll("button");
+            buttons.forEach(b => b.disabled = !enable);
         }
 
         // --- User Actions ---
